@@ -1,0 +1,202 @@
+---
+title: "Data preprocessing step"
+author: "Hanan Ali"
+date: "2024-12-02"
+output: html_document
+---
+
+
+## Introduction
+
+The Behavioral Risk Factor Surveillance System (BRFSS) is an annual health-related telephone survey conducted by the CDC, collecting responses from over 400,000 Americans on health behaviors, chronic conditions, and preventative service use since 1984. For this project, the dataset diabetes_binary_health_indicators_BRFSS2015.csv contains 253,680 survey responses from the CDC's BRFSS 2015. The target variable, Diabetes_binary, has two classes: 0: No diabetes and 1: Prediabetes or diabetes. The dataset has 22 featured variables. I will look into all of the variables except for Diabetes_binary. The variables that will be used in the EDA are the following; HighBP, HighChol, CholCheck, BMI, Smoker, Stroke, HeartDiseaseorAttack, PhysActivity, Fruits, Veggies, HvyAlcoholConsump, AnyHealthcare, NoDocbcCost, GenHlth, MentHlth, PhysHlth, DiffWalk, Sex, Age, Education, and Income.
+
+
+## Part 1 Reading in Data and converting a lot of the variables to factors with meaningful level names as well checking on missingness in data.
+
+```{r}
+# Load necessary libraries
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(readxl)
+```
+
+```{r}
+# Import the data
+diabetes_data <- read_excel("diabetes_binary_health_indicators_BRFSS2015.xlsm")
+
+# Convert variables to factors
+diabetes_data$Diabetes_binary <- factor(diabetes_data$Diabetes_binary, levels = c(0, 1), labels = c("No Diabetes", "Prediabetes or Diabetes"))
+diabetes_data$HighBP <- factor(diabetes_data$HighBP, levels = c(0, 1), labels = c("No", "Yes"))
+diabetes_data$HighChol <- factor(diabetes_data$HighChol, levels = c(0, 1), labels = c("No", "Yes"))
+diabetes_data$CholCheck <- factor(diabetes_data$CholCheck, levels = c(0, 1), labels = c("No", "Yes"))
+diabetes_data$Smoker <- factor(diabetes_data$Smoker, levels = c(0, 1), labels = c("No", "Yes"))
+diabetes_data$Stroke <- factor(diabetes_data$Stroke, levels = c(0, 1), labels = c("No", "Yes"))
+diabetes_data$HeartDiseaseorAttack <- factor(diabetes_data$HeartDiseaseorAttack, levels = c(0, 1), labels = c("No", "Yes"))
+diabetes_data$PhysActivity <- factor(diabetes_data$PhysActivity, levels = c(0, 1), labels = c("No", "Yes"))
+diabetes_data$Fruits <- factor(diabetes_data$Fruits, levels = c(0, 1), labels = c("No", "Yes"))
+diabetes_data$Veggies <- factor(diabetes_data$Veggies, levels = c(0, 1), labels = c("No", "Yes"))
+diabetes_data$HvyAlcoholConsump <- factor(diabetes_data$HvyAlcoholConsump, levels = c(0, 1), labels = c("No", "Yes"))
+diabetes_data$AnyHealthcare <- factor(diabetes_data$AnyHealthcare, levels = c(0, 1), labels = c("No", "Yes"))
+diabetes_data$NoDocbcCost <- factor(diabetes_data$NoDocbcCost, levels = c(0, 1), labels = c("No", "Yes"))
+diabetes_data$DiffWalk <- factor(diabetes_data$DiffWalk, levels = c(0, 1), labels = c("No", "Yes"))
+diabetes_data$Sex <- factor(diabetes_data$Sex, levels = c(0, 1), labels = c("Male", "Female"))
+diabetes_data$GenHlth <- factor(diabetes_data$GenHlth, levels = 1:5, labels = c("Excellent", "Very Good", "Good", "Fair", "Poor"))
+
+# Convert Age, Education, and Income to factors with meaningful level names
+diabetes_data$Age <- factor(diabetes_data$Age, levels = 1:13, labels = c("18-24", "25-29", "30-34", "35-39", "40-44", "45-49", "50-54", "55-59", "60-64", "65-69", "70-74", "75-79", "80 or older"))
+diabetes_data$Education <- factor(diabetes_data$Education, levels = 1:6, labels = c("Never attended school", "Elementary", "Some high school", "High school graduate", "Some college", "College graduate"))
+diabetes_data$Income <- factor(diabetes_data$Income, levels = 1:8, labels = c("Less than $10,000", "$10,000-$14,999", "$15,000-$19,999", "$20,000-$24,999", "$25,000-$34,999", "$35,000-$49,999", "$50,000-$74,999", "$75,000 or more"))
+
+# Check for missing values
+missing_values <- sapply(diabetes_data, function(x) sum(is.na(x)))
+
+# Checking for missing data
+diabetes_data_NA_report <- diabetes_data %>%
+  summarise_all(~sum(is.na(.))) %>%
+  pivot_longer(cols = everything(), names_to = "Variable", values_to = "Number_of_missing_values")
+print(diabetes_data_NA_report, n = Inf)
+
+
+# Summary of the dataset
+summary(diabetes_data)
+```
+
+## Summarizations
+
+After examining the dataset, I confirmed that there are no missing values. However, around 9,000 rows have BMI values exceeding 50. I'm going to look into that as well as the prescence of outliers.
+
+
+```{r}
+library(dplyr)
+library(tidyr)
+
+# Checking for missing data
+diabetes_data_NA_report <- diabetes_data %>%
+  summarise_all(~sum(is.na(.))) %>%
+  pivot_longer(cols = everything(), names_to = "Variable", values_to = "Number_of_missing_values")
+print(diabetes_data_NA_report, n = Inf)
+
+# Outlier detection using Z-scores
+outlier_z_data <- diabetes_data %>%
+  mutate(z_score = (BMI - mean(BMI, na.rm = TRUE)) / sd(BMI, na.rm = TRUE)) %>%
+  filter(abs(z_score) > 3) %>%
+  arrange(BMI)
+
+# Outlier detection using the interquartile range (IQR) method
+Q1 <- quantile(diabetes_data$BMI, 0.25, na.rm = TRUE)
+Q3 <- quantile(diabetes_data$BMI, 0.75, na.rm = TRUE)
+IQR <- Q3 - Q1
+outlier_IQR_data <- diabetes_data %>%
+  filter(BMI < (Q1 - 1.5 * IQR) | BMI > (Q3 + 1.5 * IQR))
+
+
+# Calculate mean and standard deviation
+mean_BMI <- mean(diabetes_data$BMI, na.rm = TRUE)
+sd_BMI <- sd(diabetes_data$BMI, na.rm = TRUE)
+
+# Calculate thresholds
+upper_threshold <- mean_BMI + 3 * sd_BMI
+lower_threshold <- mean_BMI - 3 * sd_BMI
+
+# Filter outliers
+outliers <- diabetes_data %>%
+  filter(BMI < lower_threshold | BMI > upper_threshold)
+
+# Count the outliers
+num_outliers <- nrow(outliers)
+
+# Print the result
+cat("Number of outliers falling outside three standard deviations from the mean:", num_outliers, "\n")
+
+```
+
+Both numerical analysis and visual inspection reveal a significant presence of outliers. Specifically, numerical tests indicate that 2,963 observations lie beyond three standard deviations from the mean. Thus, I will remove the outliers from the dataset.
+
+Extremely high BMI values can disproportionately influence measures such as the mean, standard deviation, and other summary statistics. A BMI greater than 50 is rare and often represents either data entry errors, misreporting, or an extreme subset of the population that may not align with the study's primary focus. Thus, I'll remove it.
+
+I also compared the dataset with and without the outliers we looked at above just to see the difference visually.
+
+```{r}
+# Remove BMI observations greater than 50 and store in a new dataset
+diabetes_data_clean_noOutliers <- diabetes_data %>%
+  filter(BMI < 50)
+
+# Combine the datasets with and without outliers
+combined_data <- bind_rows(
+  mutate(diabetes_data, Source = "With Outliers"),
+  mutate(diabetes_data_clean_noOutliers, Source = "Without Outliers")
+)
+
+# Plot with faceting
+ggplot(combined_data, aes(x = Source, y = BMI)) +
+  geom_boxplot(fill = "lightblue", color = "black", outlier.colour = "red") +
+  labs(
+    title = "Boxplot of BMI: With and Without Outliers",
+    x = "Data Source",
+    y = "BMI"
+  ) +
+  facet_wrap(~ Source, scales = "free") +
+  theme_minimal()
+
+
+```
+
+
+Looking at this histogram to also look at the distribution of BMI for both datasets, and see where the 3 standard deviations end (both above and below the mean) marked by dashed lines. We can see that the dataset with the outliers is rightly skewed compared to the one without it. 
+```{r}
+# Calculate mean and standard deviation for both datasets
+mean_bmi_with_outliers <- mean(diabetes_data$BMI, na.rm = TRUE)
+sd_bmi_with_outliers <- sd(diabetes_data$BMI, na.rm = TRUE)
+
+mean_bmi_no_outliers <- mean(diabetes_data_clean_noOutliers$BMI, na.rm = TRUE)
+sd_bmi_no_outliers <- sd(diabetes_data_clean_noOutliers$BMI, na.rm = TRUE)
+
+# Create the combined data frame
+combined_data <- bind_rows(
+  mutate(diabetes_data, Source = "With Outliers"),
+  mutate(diabetes_data_clean_noOutliers, Source = "No Outliers")
+)
+
+# Plot histogram with dashed lines for 3 standard deviations
+ggplot(combined_data, aes(x = BMI, fill = Source)) +
+  geom_histogram(binwidth = 1, color = "black", alpha = 0.7, position = "identity") +
+  labs(title = "BMI Distribution: With and Without Outliers",
+       x = "BMI",
+       y = "Frequency") +
+  facet_wrap(~ Source) +
+  theme_minimal() +
+  scale_fill_manual(values = c("With Outliers" = "lightblue", "No Outliers" = "lightgreen")) +
+  theme(legend.position = "none") +
+  # Add vertical dashed lines at mean +/- 3*SD for both datasets
+  geom_vline(xintercept = mean_bmi_with_outliers + 3 * sd_bmi_with_outliers, linetype = "dotted", color = "red") +
+  geom_vline(xintercept = mean_bmi_with_outliers - 3 * sd_bmi_with_outliers, linetype = "dotted", color = "red") +
+  geom_vline(xintercept = mean_bmi_no_outliers + 3 * sd_bmi_no_outliers, linetype = "dotted", color = "blue") +
+  geom_vline(xintercept = mean_bmi_no_outliers - 3 * sd_bmi_no_outliers, linetype = "dotted", color = "blue")
+
+```
+
+
+We will also look at qq plots to closely examine the outliers.
+
+```{r}
+# Combine the datasets (with and without outliers)
+combined_data <- bind_rows(
+  mutate(diabetes_data, Source = "With Outliers"),
+  mutate(diabetes_data_clean_noOutliers, Source = "No Outliers")
+)
+
+# Create the QQ plot
+ggplot(combined_data, aes(sample = BMI)) +
+  geom_qq() +
+  geom_qq_line() +
+  facet_wrap(~ Source) +
+  labs(title = "QQ Plot of BMI: With and Without Outliers",
+       x = "Theoretical Quantiles",
+       y = "Sample Quantiles") +
+  theme_minimal()
+```
+In the QQ plot comparing the dataset with and without outliers, the dataset with outliers deviates more significantly from the line, this indicates that the outliers were skewing the data and distorting its normality. The dataset without outliers is closer to the reference line, this suggests that removing the outliers made the data more normally distributed.
+
+
+In conclusion, I decided to treat BMI values of 50 or higher as outliers and remove them from the dataset. I took a conservative approach, using the Z-score method with a cutoff at 49 (looking at upper_threshold value). The boxplot methods, however, suggested a more stringent cutoff at 42, which would have resulted in removing 6,000 more observations than the Z-score approach. Since the dataset is large, I wanted to avoid being too aggressive in removing data without consulting a health expert. After running boxplots, histograms, and QQ plots, I feel confident in proceeding with the dataset after removing the outliers.
