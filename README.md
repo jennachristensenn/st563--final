@@ -26,4 +26,3 @@ diab_train <- training(diab_split)
 diab_test <- testing(diab_split)
 diab_5_fold <- vfold_cv(diab_train, 5)
 ```
-testing -- hanan
