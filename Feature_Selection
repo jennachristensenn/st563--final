@@ -1,0 +1,41 @@
+# Now, create the response variable (binary)
+y <- diabetes_data$Diabetes_binary
+
+# Use model.matrix to convert factors to numeric form (this excludes the intercept term)
+X <- model.matrix(Diabetes_binary ~ . - 1, data = diabetes_data)  # Exclude intercept term
+
+# Now, fit the Lasso logistic regression model
+lasso_model <- glmnet(x = X, y = y, family = "binomial", alpha = 1)
+
+# Perform cross-validation to find the optimal lambda
+cv_lasso <- cv.glmnet(x = as.matrix(X), y = y, family = "binomial", alpha = 1)
+
+# Plot the cross-validation error (to visualize)
+plot(cv_lasso)
+
+# Get the lambda value that gives the minimum cross-validation error
+lambda_min <- cv_lasso$lambda.min
+
+# Get the lambda value based on the 1 standard error rule
+lambda_1se <- cv_lasso$lambda.1se
+
+# Compare the results
+cat("Lambda that minimizes CV error:", lambda_min, "\n")
+cat("Lambda from 1-SE rule:", lambda_1se, "\n")
+
+# Fit the Lasso model with the 1-SE rule lambda
+lasso_model_1se <- glmnet(x = X, y = y, family = "binomial", alpha = 1, lambda = lambda_1se)
+
+# Set a threshold
+threshold <- 0.21
+
+# Get the coefficients from the Lasso model fitted with the 1-SE rule
+coefficients <- coef(lasso_model_1se)
+
+# Convert sparse matrix to a dense matrix (if necessary)
+coefficients_dense <- as.matrix(coefficients)
+
+# Filter coefficients above the threshold (absolute value)
+coefficients_thresholded <- coefficients_dense[abs(coefficients_dense) > threshold]
+
+print(coefficients_thresholded)
