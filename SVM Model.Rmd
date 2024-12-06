@@ -1,0 +1,182 @@
+---
+title: "SVM Model"
+author: "Hanan Ali"
+date: "2024-12-05"
+output: html_document
+---
+
+### Loading libraries
+```{r}
+# Load libraries
+library(e1071)
+library(caret)
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(readxl)
+```
+
+### Pre-processing Data 
+```{r}
+# Import the data
+diabetes_data <- read_excel("diabetes_binary_health_indicators_BRFSS2015.xlsm")
+
+# Convert variables to factors
+diabetes_data$Diabetes_binary <- factor(diabetes_data$Diabetes_binary, levels = c(0, 1), labels = c("No Diabetes", "Prediabetes or Diabetes"))
+diabetes_data$HighBP <- factor(diabetes_data$HighBP, levels = c(0, 1), labels = c("No", "Yes"))
+diabetes_data$HighChol <- factor(diabetes_data$HighChol, levels = c(0, 1), labels = c("No", "Yes"))
+diabetes_data$CholCheck <- factor(diabetes_data$CholCheck, levels = c(0, 1), labels = c("No", "Yes"))
+diabetes_data$Smoker <- factor(diabetes_data$Smoker, levels = c(0, 1), labels = c("No", "Yes"))
+diabetes_data$Stroke <- factor(diabetes_data$Stroke, levels = c(0, 1), labels = c("No", "Yes"))
+diabetes_data$HeartDiseaseorAttack <- factor(diabetes_data$HeartDiseaseorAttack, levels = c(0, 1), labels = c("No", "Yes"))
+diabetes_data$PhysActivity <- factor(diabetes_data$PhysActivity, levels = c(0, 1), labels = c("No", "Yes"))
+diabetes_data$Fruits <- factor(diabetes_data$Fruits, levels = c(0, 1), labels = c("No", "Yes"))
+diabetes_data$Veggies <- factor(diabetes_data$Veggies, levels = c(0, 1), labels = c("No", "Yes"))
+diabetes_data$HvyAlcoholConsump <- factor(diabetes_data$HvyAlcoholConsump, levels = c(0, 1), labels = c("No", "Yes"))
+diabetes_data$AnyHealthcare <- factor(diabetes_data$AnyHealthcare, levels = c(0, 1), labels = c("No", "Yes"))
+diabetes_data$NoDocbcCost <- factor(diabetes_data$NoDocbcCost, levels = c(0, 1), labels = c("No", "Yes"))
+diabetes_data$DiffWalk <- factor(diabetes_data$DiffWalk, levels = c(0, 1), labels = c("No", "Yes"))
+diabetes_data$Sex <- factor(diabetes_data$Sex, levels = c(0, 1), labels = c("Male", "Female"))
+diabetes_data$GenHlth <- factor(diabetes_data$GenHlth, levels = 1:5, labels = c("Excellent", "Very Good", "Good", "Fair", "Poor"))
+
+# Convert Education, and Income to factors with meaningful level names
+diabetes_data$Education <- factor(diabetes_data$Education, levels = 1:6, labels = c("Never attended school", "Elementary", "Some high school", "High school graduate", "Some college", "College graduate"))
+diabetes_data$Income <- factor(diabetes_data$Income, levels = 1:8, labels = c("Less than $10,000", "$10,000-$14,999", "$15,000-$19,999", "$20,000-$24,999", "$25,000-$34,999", "$35,000-$49,999", "$50,000-$74,999", "$75,000 or more"))
+
+# Remove BMI observations greater than 50 and store in a new dataset
+diabetes_data <- diabetes_data %>%
+  filter(BMI < 50)
+
+# Select relevant variables
+diabetes_data_svm <- diabetes_data %>%
+  select(Diabetes_binary, HighBP, HighChol, CholCheck, HeartDiseaseorAttack, HvyAlcoholConsump, GenHlth, Sex, Age)
+
+# Convert target variable to a factor
+diabetes_data_svm$Diabetes_binary <- as.factor(diabetes_data_svm$Diabetes_binary)
+
+# Scale numeric variables
+numeric_vars <- c("Age")  # Add more numeric variables if needed
+diabetes_data_svm <- diabetes_data_svm %>%
+  mutate(across(all_of(numeric_vars), scale))
+
+```
+
+
+### Split Data into Training and Testing Sets
+```{r}
+# Set seed for reproducibility
+set.seed(123)
+
+# Create training (70%) and testing (30%) datasets
+train_index <- createDataPartition(diabetes_data_svm$Diabetes_binary, p = 0.7, list = FALSE)
+train_data <- diabetes_data_svm[train_index, ]
+test_data <- diabetes_data_svm[-train_index, ]
+```
+
+
+### Create an SVM Model with a radial kernel with cost=1 (default value). The radial kernel is capable of modeling nonlinear boundaries in the data and is useful when the relationship between the predictors and the target variable isn't linear.
+```{r}
+# Train SVM model with radial kernel and cost = 1
+svm_model <- svm(Diabetes_binary ~ ., 
+                 data = train_data, 
+                 kernel = "radial", 
+                 type = "C-classification")
+```
+
+
+### Tuning hyperparameters:
+A low cost encourages a simpler model that may misclassify some training points but could generalize better. A high cost penalizes misclassification more, fitting the training data more closely but increasing the risk of overfitting. On the other hand, a low gamma indicates that the SVM looks at data points far away to decide the classification of a given point. A high gamma indicates that the SVM focuses only on points very close to the one it’s trying to classify.
+
+I'm going to use grid search with cross-validation to find the best value for cost and gamma. 
+```{r}
+# Train the SVM model with specified cost and gamma
+svm_model_fixed <- svm(
+  Diabetes_binary ~ ., 
+  data = train_data, 
+  kernel = "radial", 
+  type = "C-classification", #using classification instead of regression because better choice for predicting binary outcomes
+  cost = 1, 
+  gamma = 0.1
+)
+
+# Print the model summary
+print(summary(svm_model_fixed))
+```
+ALSO LOOK INTO HOW THIS MODEL ACCURACY IS BEING CALCUATED
+
+### Looking at model's performance
+```{r}
+# Predict on the test set
+predictions <- predict(svm_model_fixed, newdata = test_data)
+
+# Confusion matrix
+conf_matrix <- confusionMatrix(predictions, test_data$Diabetes_binary)
+print(conf_matrix)
+
+# Accuracy
+accuracy <- conf_matrix$overall["Accuracy"]
+cat("Model Accuracy:", accuracy, "\n")
+```
+Sensitivity is high, meaning the model does a good job at identifying those diabetes. Specificity is very low, suggesting that the model fails to identify people without diabetes correctly.
+
+The model has a bias towards predicting diabetes, as reflected in the high senstivity and low specificity. The model seems to be over-predicting diabetes and under-predicting no diabetes, resulting in a high accuracy but poor balanced performance.
+
+
+
+
+
+
+### Setting up another SVM model that trains an SVM model with a linear kernel, using repeated cross-validation and testing different values of the cost parameter as defined in the tuning grid. The best cost value is selected based on model performance.
+```{r}
+# Set up repeated cross-validation
+# It is configuring the cross-validation process to split the dataset into folds, train the model on some folds, and test it on others repeatedly. The training and test sets are created within each fold during the cross-validation process.
+set.seed(1001)
+tr_control <- trainControl(method = "repeatedcv", 
+                           number = 5,  # Number of folds
+                           repeats = 10)  # Number of repetitions
+
+# Define a tuning grid for the cost parameter
+tune_grid <- expand.grid(cost = exp(seq(-5, 3, length.out = 30)))#this generates a sequence of 30 values between -5 and 3
+
+# Train the SVM model using the caret package
+svm_caret <- train(
+  Diabetes_binary ~ .,  # Formula with target and predictors
+  data = train_data,    # Training data
+  method = "svmLinear2",  # SVM with linear kernel and custom cost tuning
+  tuneGrid = tune_grid,  # Grid for tuning the cost parameter
+  trControl = tr_control # Repeated CV settings
+)
+
+# Output the best cost parameter
+cat("Best Cost Parameter (C):", svm_caret$bestTune$cost, "\n")
+
+# Print the model summary
+print(svm_caret)
+```
+RERUN BUT REDUCE TUNING GRID SIZE FROM 30 TO 10 AND REPEATS TO 5 INSTEAD OF 10
+ALSO SET A LIMIT ON THE NUMBER OF ITERATIONS
+
+also it looks like warning is coming from tuning grid so change that first
+
+```{r}
+# Make predictions on the test data using the trained SVM model
+pred.class <- predict(object = svm_caret, 
+                      newdata = test_data, 
+                      type = "raw")  # "raw" to get class predictions, not probabilities
+
+# Calculate the error matrix using klaR package
+err <- klaR::errormatrix(true = test_data$Diabetes_binary, 
+                         predicted = pred.class, 
+                         relative = TRUE)
+
+# Round the error matrix to 3 decimal places and print it
+round(err, 3)
+
+# To extract the test accuracy from the error matrix:
+accuracy <- sum(diag(err))  # Sum of the diagonal elements (correct predictions)
+cat("Test Accuracy:", accuracy, "\n")
+
+```
+
+
+
