@@ -1,4 +1,4 @@
-# Now, create the response variable (binary)
+# Create the response variable (binary)
 y <- diabetes_data$Diabetes_binary
 
 # Use model.matrix to convert factors to numeric form (this excludes the intercept term)
@@ -32,8 +32,11 @@ threshold <- 0.21
 # Get the coefficients from the Lasso model fitted with the 1-SE rule
 coefficients <- coef(lasso_model_1se)
 
-# Convert sparse matrix to a dense matrix (if necessary)
+# Convert sparse matrix to a dense matrix (if necessary
+)
 coefficients_dense <- as.matrix(coefficients)
+
+print(coefficients_dense)
 
 # Filter coefficients above the threshold (absolute value)
 coefficients_thresholded <- coefficients_dense[abs(coefficients_dense) > threshold]
