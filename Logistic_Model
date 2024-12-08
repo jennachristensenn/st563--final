@@ -10,7 +10,7 @@ library(doParallel)  # For parallel computation
 diabetes_data <- read_csv("diabetes_binary_health_indicators_BRFSS2015.csv")
 
 # Convert variables to factors
-diabetes_data$Diabetes_binary <- factor(diabetes_data$Diabetes_binary, levels = c(0, 1), labels = c("No Diabetes", "Prediabetes or Diabetes"))
+diabetes_data$Diabetes_binary <- factor(diabetes_data$Diabetes_binary, levels = c(0, 1), labels = c("No.Diabetes", "Prediabetes.or.Diabetes"))
 diabetes_data$HighBP <- factor(diabetes_data$HighBP, levels = c(0, 1), labels = c("No", "Yes"))
 diabetes_data$HighChol <- factor(diabetes_data$HighChol, levels = c(0, 1), labels = c("No", "Yes"))
 diabetes_data$CholCheck <- factor(diabetes_data$CholCheck, levels = c(0, 1), labels = c("No", "Yes"))
@@ -38,27 +38,33 @@ predictors <- c("HighBP", "HighChol", "CholCheck", "HeartDiseaseorAttack",
 
 # Subset the data to include only the selected predictors
 diabetes_data_sub <- diabetes_data[, c(predictors, "Diabetes_binary")]
+  
+# Now proceed with cross-validation
+train_control <- trainControl(method = "cv", number = 10, classProbs = TRUE)
 
-# Fit the normal logistic regression model without regularization using glm()
-logistic_model <- glm(Diabetes_binary ~ ., 
-                      data = diabetes_data_sub,  # Subset of data with only selected predictors
-                      family = "binomial")  # Logistic regression (binary outcome)
+# Fit the logistic regression model with cross-validation
+logistic_model_cv <- train(Diabetes_binary ~ ., 
+                           data = diabetes_data_sub, 
+                           method = "glm", 
+                           family = "binomial", 
+                           trControl = train_control)
 
-# View the coefficients of the logistic regression model
-summary(logistic_model)
+# View the model summary
+print(logistic_model_cv)
 
-# Predict probabilities using the logistic regression model
-pred_probs <- predict(logistic_model, diabetes_data_sub, type = "response")
+# Get the cross-validation results (e.g., Accuracy, Kappa, AUC)
+print(logistic_model_cv$results)
 
-# Convert probabilities to binary predictions using a threshold (e.g., 0.5)
-pred_class <- ifelse(pred_probs > 0.5, "Prediabetes or Diabetes", "No Diabetes")
+# Predict using the cross-validated model
+pred_class_cv <- predict(logistic_model_cv, newdata = diabetes_data_sub)
 
 # Confusion Matrix to evaluate performance
-conf_matrix <- confusionMatrix(as.factor(pred_class), diabetes_data_sub$Diabetes_binary)
-print(conf_matrix)
+conf_matrix_cv <- confusionMatrix(pred_class_cv, diabetes_data_sub$Diabetes_binary)
+print(conf_matrix_cv)
 
-# ROC Curve and AUC
+# ROC Curve and AUC for cross-validation model
 library(pROC)
-roc_curve <- roc(diabetes_data_sub$Diabetes_binary, pred_probs)
-plot(roc_curve)
-auc(roc_curve)
+pred_probs_cv <- predict(logistic_model_cv, newdata = diabetes_data_sub, type = "prob")[,2]
+roc_curve_cv <- roc(diabetes_data_sub$Diabetes_binary, pred_probs_cv)
+plot(roc_curve_cv)
+auc(roc_curve_cv)
