@@ -1,0 +1,64 @@
+# Load necessary libraries
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(readr)
+library(caret)
+library(doParallel)  # For parallel computation
+
+# Import the data
+diabetes_data <- read_csv("diabetes_binary_health_indicators_BRFSS2015.csv")
+
+# Convert variables to factors
+diabetes_data$Diabetes_binary <- factor(diabetes_data$Diabetes_binary, levels = c(0, 1), labels = c("No Diabetes", "Prediabetes or Diabetes"))
+diabetes_data$HighBP <- factor(diabetes_data$HighBP, levels = c(0, 1), labels = c("No", "Yes"))
+diabetes_data$HighChol <- factor(diabetes_data$HighChol, levels = c(0, 1), labels = c("No", "Yes"))
+diabetes_data$CholCheck <- factor(diabetes_data$CholCheck, levels = c(0, 1), labels = c("No", "Yes"))
+diabetes_data$Smoker <- factor(diabetes_data$Smoker, levels = c(0, 1), labels = c("No", "Yes"))
+diabetes_data$Stroke <- factor(diabetes_data$Stroke, levels = c(0, 1), labels = c("No", "Yes"))
+diabetes_data$HeartDiseaseorAttack <- factor(diabetes_data$HeartDiseaseorAttack, levels = c(0, 1), labels = c("No", "Yes"))
+diabetes_data$PhysActivity <- factor(diabetes_data$PhysActivity, levels = c(0, 1), labels = c("No", "Yes"))
+diabetes_data$Fruits <- factor(diabetes_data$Fruits, levels = c(0, 1), labels = c("No", "Yes"))
+diabetes_data$Veggies <- factor(diabetes_data$Veggies, levels = c(0, 1), labels = c("No", "Yes"))
+diabetes_data$HvyAlcoholConsump <- factor(diabetes_data$HvyAlcoholConsump, levels = c(0, 1), labels = c("No", "Yes"))
+diabetes_data$AnyHealthcare <- factor(diabetes_data$AnyHealthcare, levels = c(0, 1), labels = c("No", "Yes"))
+diabetes_data$NoDocbcCost <- factor(diabetes_data$NoDocbcCost, levels = c(0, 1), labels = c("No", "Yes"))
+diabetes_data$DiffWalk <- factor(diabetes_data$DiffWalk, levels = c(0, 1), labels = c("No", "Yes"))
+diabetes_data$Sex <- factor(diabetes_data$Sex, levels = c(0, 1), labels = c("Male", "Female"))
+diabetes_data$GenHlth <- factor(diabetes_data$GenHlth, levels = 1:5, labels = c("Excellent", "Very Good", "Good", "Fair", "Poor"))
+
+# Convert Age, Education, and Income to factors with meaningful level names
+diabetes_data$Age <- factor(diabetes_data$Age, levels = 1:13, labels = c("18-24", "25-29", "30-34", "35-39", "40-44", "45-49", "50-54", "55-59", "60-64", "65-69", "70-74", "75-79", "80 or older"))
+diabetes_data$Education <- factor(diabetes_data$Education, levels = 1:6, labels = c("Never attended school", "Elementary", "Some high school", "High school graduate", "Some college", "College graduate"))
+diabetes_data$Income <- factor(diabetes_data$Income, levels = 1:8, labels = c("Less than $10,000", "$10,000-$14,999", "$15,000-$19,999", "$20,000-$24,999", "$25,000-$34,999", "$35,000-$49,999", "$50,000-$74,999", "$75,000 or more"))
+
+# Select the predictors you want to use
+predictors <- c("HighBP", "HighChol", "CholCheck", "HeartDiseaseorAttack", 
+                "HvyAlcoholConsump", "GenHlth", "Sex", "Age")
+
+# Subset the data to include only the selected predictors
+diabetes_data_sub <- diabetes_data[, c(predictors, "Diabetes_binary")]
+
+# Fit the normal logistic regression model without regularization using glm()
+logistic_model <- glm(Diabetes_binary ~ ., 
+                      data = diabetes_data_sub,  # Subset of data with only selected predictors
+                      family = "binomial")  # Logistic regression (binary outcome)
+
+# View the coefficients of the logistic regression model
+summary(logistic_model)
+
+# Predict probabilities using the logistic regression model
+pred_probs <- predict(logistic_model, diabetes_data_sub, type = "response")
+
+# Convert probabilities to binary predictions using a threshold (e.g., 0.5)
+pred_class <- ifelse(pred_probs > 0.5, "Prediabetes or Diabetes", "No Diabetes")
+
+# Confusion Matrix to evaluate performance
+conf_matrix <- confusionMatrix(as.factor(pred_class), diabetes_data_sub$Diabetes_binary)
+print(conf_matrix)
+
+# ROC Curve and AUC
+library(pROC)
+roc_curve <- roc(diabetes_data_sub$Diabetes_binary, pred_probs)
+plot(roc_curve)
+auc(roc_curve)
