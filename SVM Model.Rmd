@@ -130,13 +130,14 @@ The model has a bias towards predicting diabetes, as reflected in the high senst
 ```{r}
 # Set up repeated cross-validation
 # It is configuring the cross-validation process to split the dataset into folds, train the model on some folds, and test it on others repeatedly. The training and test sets are created within each fold during the cross-validation process.
-set.seed(1001)
+set.seed(100)
 tr_control <- trainControl(method = "repeatedcv", 
                            number = 5,  # Number of folds
                            repeats = 10)  # Number of repetitions
 
 # Define a tuning grid for the cost parameter
-tune_grid <- expand.grid(cost = exp(seq(-5, 3, length.out = 30)))#this generates a sequence of 30 values between -5 and 3
+tune_grid <- expand.grid(cost = exp(seq(-5, 3, length.out = 1)))#this generates a sequence of 1 value between -5 and 3
+#ANY VALUE MORE THAN 1 IN LENGTH.OUT WILL LEAD TO MODEL CRASHING 
 
 # Train the SVM model using the caret package
 svm_caret <- train(
@@ -177,6 +178,5 @@ accuracy <- sum(diag(err))  # Sum of the diagonal elements (correct predictions)
 cat("Test Accuracy:", accuracy, "\n")
 
 ```
-
 
 
