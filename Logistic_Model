@@ -38,6 +38,9 @@ predictors <- c("HighBP", "HighChol", "CholCheck", "HeartDiseaseorAttack",
 
 # Subset the data to include only the selected predictors
 diabetes_data_sub <- diabetes_data[, c(predictors, "Diabetes_binary")]
+
+# Setting seed
+set.seed(123)
   
 # Now proceed with cross-validation
 train_control <- trainControl(method = "cv", number = 10, classProbs = TRUE)
