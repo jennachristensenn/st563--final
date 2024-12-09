@@ -52,8 +52,11 @@ logistic_model_cv <- train(Diabetes_binary ~ .,
                            family = "binomial", 
                            trControl = train_control)
 
-# View the model summary
+# View CV summary with performance metrics
 print(logistic_model_cv)
+
+# View model summary
+summary(logistic_model_cv)
 
 # Get the cross-validation results (e.g., Accuracy, Kappa, AUC)
 print(logistic_model_cv$results)
