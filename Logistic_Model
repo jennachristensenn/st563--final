@@ -32,6 +32,10 @@ diabetes_data$Age <- factor(diabetes_data$Age, levels = 1:13, labels = c("18-24"
 diabetes_data$Education <- factor(diabetes_data$Education, levels = 1:6, labels = c("Never attended school", "Elementary", "Some high school", "High school graduate", "Some college", "College graduate"))
 diabetes_data$Income <- factor(diabetes_data$Income, levels = 1:8, labels = c("Less than $10,000", "$10,000-$14,999", "$15,000-$19,999", "$20,000-$24,999", "$25,000-$34,999", "$35,000-$49,999", "$50,000-$74,999", "$75,000 or more"))
 
+# Filtering ouot BMI >= 50 
+diabetes_data <- diabetes_data |>
+  filter(BMI < 50)
+
 # Select the predictors you want to use
 predictors <- c("HighBP", "HighChol", "CholCheck", "HeartDiseaseorAttack", 
                 "HvyAlcoholConsump", "GenHlth", "Sex", "Age")
