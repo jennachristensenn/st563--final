@@ -57,7 +57,7 @@ df <- diabetes_data[, c(1:4, 8, 12, 15, 19:20)]
 
 # Split the data into training and test sets
 set.seed(245)  # For reproducibility
-train_indices <- sample(seq_len(nrow(df)), size = 0.7 * nrow(df))
+train_indices <- sample(seq_len(nrow(df)), size = 0.8 * nrow(df))
 train_data <- df[train_indices, ]
 test_data <- df[-train_indices, ]
 
@@ -67,7 +67,7 @@ test_data <- df[-train_indices, ]
 Cross Validation and model training for random forest model.
 ```{r}
 # Set up cross-validation parameters
-train_control <- trainControl(method = "cv", number = 3)
+train_control <- trainControl(method = "cv", number = 5)
 
 # Train the model using caret
 rf_cv_model <- train(
@@ -76,7 +76,7 @@ rf_cv_model <- train(
   method = "rf",
   trControl = train_control,
   tuneGrid = expand.grid(mtry = c(2, 3, 4)), # Tune mtry
-  ntree = 50
+  ntree = 100
 )
 
 ```
@@ -103,3 +103,24 @@ cat("Precision:", precision, "\n")
 cat("Recall:", recall, "\n")
 cat("F1 Score:", f1_score, "\n")
 ```
+
+OOB error
+```{r}
+# OOB error from the final model
+oob_error <- rf_cv_model$finalModel$err.rate[, "OOB"]
+
+# Plot OOB error
+plot(oob_error, type = "l", col = "blue",
+     main = "Out-of-Bag Error Rate",
+     xlab = "Number of Trees",
+     ylab = "OOB Error")
+```
+
+Variable Importance
+```{r}
+# Variable importance
+importance <- varImp(rf_cv_model)
+print(importance)
+
+# Plot variable importance
+plot(importance, main = "Variable Importance")

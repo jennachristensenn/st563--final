@@ -102,7 +102,7 @@ svm_model_fixed <- svm(
 # Print the model summary
 print(summary(svm_model_fixed))
 ```
-ALSO LOOK INTO HOW THIS MODEL ACCURACY IS BEING CALCUATED
+
 
 ### Looking at model's performance
 ```{r}
@@ -154,29 +154,19 @@ cat("Best Cost Parameter (C):", svm_caret$bestTune$cost, "\n")
 # Print the model summary
 print(svm_caret)
 ```
-RERUN BUT REDUCE TUNING GRID SIZE FROM 30 TO 10 AND REPEATS TO 5 INSTEAD OF 10
-ALSO SET A LIMIT ON THE NUMBER OF ITERATIONS
 
-also it looks like warning is coming from tuning grid so change that first
 
 ```{r}
-# Make predictions on the test data using the trained SVM model
-pred.class <- predict(object = svm_caret, 
-                      newdata = test_data, 
-                      type = "raw")  # "raw" to get class predictions, not probabilities
+# Predict on the test set
+predictions <- predict(svm_caret, newdata = test_data)
 
-# Calculate the error matrix using klaR package
-err <- klaR::errormatrix(true = test_data$Diabetes_binary, 
-                         predicted = pred.class, 
-                         relative = TRUE)
+# Confusion matrix
+conf_matrix <- confusionMatrix(predictions, test_data$Diabetes_binary)
+print(conf_matrix)
 
-# Round the error matrix to 3 decimal places and print it
-round(err, 3)
-
-# To extract the test accuracy from the error matrix:
-accuracy <- sum(diag(err))  # Sum of the diagonal elements (correct predictions)
-cat("Test Accuracy:", accuracy, "\n")
-
+# Accuracy
+accuracy <- conf_matrix$overall["Accuracy"]
+cat("Model Accuracy:", accuracy, "\n")
 ```
 
 
